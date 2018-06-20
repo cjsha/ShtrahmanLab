@@ -1,0 +1,36 @@
+
+**** Build of configuration Debug for project temporalbehavior2 ****
+
+"C:\\ti\\ccsv7\\utils\\bin\\gmake" -k -j 6 all -O 
+ 
+'Building file: "../main.c"'
+'Invoking: ARM Compiler'
+"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.7.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --include_path="C:/Users/LOG-G/workspace_v7/temporalbehavior2" --include_path="C:/ti/TivaWare_C_Series-2.1.3.156" --include_path="C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.7.LTS/include" --define=ccs="ccs" --define=PART_TM4C123GH6PM -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi --preproc_with_compile --preproc_dependency="main.d_raw"  "../main.c"
+'Finished building: "../main.c"'
+ 
+'Building target: "temporalbehavior2.out"'
+'Invoking: ARM Linker'
+"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.7.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --define=ccs="ccs" --define=PART_TM4C123GH6PM -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"temporalbehavior2.map" --heap_size=0 --stack_size=512 -i"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.7.LTS/lib" -i"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.7.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="temporalbehavior2_linkInfo.xml" --rom_model -o "temporalbehavior2.out" "./main.obj" "./tm4c123gh6pm_startup_ccs.obj" "../tm4c123gh6pm.cmd"  -llibc.a 
+<Linking>
+
+ undefined              first referenced
+  symbol                    in file     
+ ---------              ----------------
+ SysCtlClockSet         ./main.obj      
+ SysCtlPeripheralEnable ./main.obj      
+ TimerConfigure         ./main.obj      
+ TimerEnable            ./main.obj      
+ TimerIntEnable         ./main.obj      
+ TimerIntRegister       ./main.obj      
+ TimerLoadSet           ./main.obj      
+
+error #10234-D: unresolved symbols remain
+error #10010: errors encountered during linking; "temporalbehavior2.out" not built
+
+>> Compilation failure
+makefile:142: recipe for target 'temporalbehavior2.out' failed
+gmake[1]: *** [temporalbehavior2.out] Error 1
+makefile:138: recipe for target 'all' failed
+gmake: *** [all] Error 2
+
+**** Build Finished ****
