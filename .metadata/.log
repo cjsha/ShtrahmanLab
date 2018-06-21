@@ -4753,3 +4753,16 @@ java.io.FileNotFoundException
 !ENTRY com.ti.ccstudio.debug 1 0 2018-06-19 15:20:57.102
 !MESSAGE DS_ERROR: CORTEX_M4_0: GEL: Encountered a problem loading file: C:\Users\LOG-G\workspace_v7\PinInterrupts\Debug\PinInterrupts.out Could not open file
 
+!SESSION 2018-06-20 17:55:20.724 -----------------------------------------------
+eclipse.buildId=4.6.0.I20160606-1100
+java.version=1.8.0_112
+java.vendor=Oracle Corporation
+BootLoader constants: OS=win32, ARCH=x86, WS=win32, NL=en_US
+Framework arguments:  -product com.ti.ccstudio.branding.product -product com.ti.ccstudio.branding.product
+Command-line arguments:  -os win32 -ws win32 -arch x86 -product com.ti.ccstudio.branding.product -data C:\Users\LOG-G\Desktop\shtrahmanLab -product com.ti.ccstudio.branding.product
+
+!ENTRY com.ti.common.core 4 0 2018-06-20 17:55:21.959
+!MESSAGE path=ccs_base/DebugServer
+
+!ENTRY com.ti.common.core 4 0 2018-06-20 17:55:21.966
+!MESSAGE debugServerDir=C:/ti/ccsv7/ccs_base/DebugServer
