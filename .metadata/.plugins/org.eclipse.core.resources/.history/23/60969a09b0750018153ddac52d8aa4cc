@@ -1,0 +1,155 @@
+/*
+ * Prototype Behavior Code
+ * Authors: Max Guerrero and Cris Sharp
+ *
+ */
+
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/tm4c123gh6pm.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/gpio.h"
+#include "driverlib/timer.h"
+
+unsigned int masterTimerCounter = 0;
+unsigned int phase1 = 1;
+unsigned int phase2 = 1;
+uint32_t ui32Length1;
+uint32_t ui32Length2;
+uint32_t ui32Length3;
+
+void setUpMasterTimer(void);
+void beginTones(void);
+void enablePeripherals(void);
+void Tone1TimerHandler(void);
+void Tone2TimerHandler(void);
+void Tone3TimerHandler(void);
+void Tone4TimerHandler(void);
+
+
+int main(void)
+{
+    //Configure System Clock to run at 40MHz
+    SysCtlClockSet(SYSCTL_SYSDIV_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
+    enablePeripherals();
+    setUpMasterTimer();
+    //SetUpTonesTimers
+
+    while(1){
+        while(phase1){
+
+        }
+    }
+}
+
+void enablePeripherals(void){
+    //Enable GPIO Peripheral and configure the pins connected to the LED's as outputs
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
+    //Enable PWM, Pin Interrupts
+
+}
+
+void setUpMasterTimer(void){
+    uint32_t ui32MasterPeriod;
+    /*Timer Configuration*/
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+    /*Delay Calculations*/
+    //a 0.001 Second resolution for master timer
+    ui32MasterPeriod = (SysCtlClockGet()/1000);
+    TimerLoadSet(TIMER0_BASE,TIMER_A, ui32MasterPeriod - 1);
+    /*Interrupt Enable*/
+    IntEnable(INT_TIMER0A);
+    TimerIntEnable(TIMER0_BASE,TIMER_TIMA_TIMEOUT);
+    IntMasterEnable();
+    /*Timer Enable*/
+    TimerEnable(TIMER0_BASE,TIMER_A);
+
+
+}
+
+void beginTones(void){
+    /*Timer1 for Tone(LED) 1 */
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+    TimerConfigure(TIMER1_BASE,TIMER_CFG_ONE_SHOT);
+    //We want the four tones played consecutively to last a total of
+    //1.5 seconds, therefore the duration of each tone is such:
+    ui32Length1= (SysCtlClockGet()/2);
+    TimerLoadSet(TIMER1_BASE, TIMER_A, ui32Length1 - 1);
+    IntEnable(INT_TIMER1A);
+    TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+
+    /*Timer2 for Tone(LED) 2*/
+    ui32Length2 = ui32Length1;
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_ONE_SHOT);
+    TimerLoadSet(TIMER2_BASE,TIMER_A, 2*ui32Length2-1);
+    IntEnable(INT_TIMER2A);
+    TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+    /*Timer3 for Tone(LED) 3*/
+    ui32Length3 = ui32Length2;
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
+    TimerConfigure(TIMER3_BASE, TIMER_CFG_ONE_SHOT);
+    TimerLoadSet(TIMER3_BASE, TIMER_A, 3*ui32Length3-1);
+    IntEnable(INT_TIMER3A);
+    TimerIntEnable(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
+
+//    /*Enable Timers*/
+    TimerEnable(TIMER1_BASE,TIMER_A);
+    TimerEnable(TIMER2_BASE,TIMER_A);
+    TimerEnable(TIMER3_BASE,TIMER_A);
+}
+
+
+void MasterTimerIntHandler(void)
+{
+    //Clear master timer Interrupt
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+
+    ++masterTimerCounter;
+    if(masterTimerCounter == 2000){
+     //begin tones timer (enable Timer for Tones)
+     beginTones();
+    }
+
+
+}
+
+void Tone1TimerHandler(void){
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_2, 4);
+
+}
+
+void Tone2TimerHandler(void){
+    TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+    if(GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_2)){
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 8);
+    }
+
+}
+void Tone3TimerHandler(void){
+    TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
+    if(GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_3)){
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0);
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 2);
+        TimerEnable(TIMER3_BASE, TIMER_A);
+        TimerLoadSet(TIMER3_BASE, TIMER_A, ui32Length1 - 1);
+    }
+    else if(GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_1)){
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1,0);
+        phase2 = 1;
+        phase1 = 0;
+
+    }
+
+}
+void Tone4TimerHandler(void){
+
+}
+

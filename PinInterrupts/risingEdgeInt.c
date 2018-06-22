@@ -40,7 +40,7 @@ int main(void)
     // Enable PA2's weak pull up resistor
     GPIOPadConfigSet(GPIO_PORTA_BASE,GPIO_PIN_2,GPIO_STRENGTH_2MA,GPIO_PIN_TYPE_STD_WPU);
 
-    //Set pins 1,2 and 3 as output, SW Controolled
+    //Set pins 1,2 and 3 as output, SW Controlled
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1| GPIO_PIN_2|GPIO_PIN_3);
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_2);
 
