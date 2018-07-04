@@ -6673,3 +6673,88 @@ Caused by: java.lang.IllegalArgumentException:
 !ENTRY com.ti.ccstudio.debug 1 0 2018-07-02 18:03:35.467
 !MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
 
+!SESSION 2018-07-03 14:54:43.064 -----------------------------------------------
+eclipse.buildId=4.6.0.I20160606-1100
+java.version=1.8.0_112
+java.vendor=Oracle Corporation
+BootLoader constants: OS=win32, ARCH=x86, WS=win32, NL=en_US
+Framework arguments:  -product com.ti.ccstudio.branding.product
+Command-line arguments:  -os win32 -ws win32 -arch x86 -product com.ti.ccstudio.branding.product
+
+!ENTRY com.ti.common.core 4 0 2018-07-03 14:54:45.486
+!MESSAGE path=ccs_base/DebugServer
+
+!ENTRY com.ti.common.core 4 0 2018-07-03 14:54:45.493
+!MESSAGE debugServerDir=C:/ti/ccsv7/ccs_base/DebugServer
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:00:09.904
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:04:34.260
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:19:05.739
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:19:19.276
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:23:34.049
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:24:13.874
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:35:08.746
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:38:02.853
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:40:13.061
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 15:57:35.184
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 16:01:53.278
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 16:03:19.269
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 16:09:14.492
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 17:02:09.853
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 17:17:47.171
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 17:21:06.041
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 17:22:41.759
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+
+
+!ENTRY com.ti.ccstudio.debug 1 0 2018-07-03 17:24:19.808
+!MESSAGE DS_ERROR: CORTEX_M4_0: Trouble Reading Memory Block at 0x400253fc on Page 0 of Length 0x4: Debug Port error occurred.
+

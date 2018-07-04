@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include "inc/tm4c123gh6pm.h"
 #include "inc/hw_memmap.h"
@@ -23,10 +24,26 @@
 #define TONELENGTH 0.375              //Length of each tone in seconds
 #define TONELENGTHLOAD 1/(TONELENGTH) //In order to obtain timer/counter cycles
 #define OPENVALVETIME 1               //Duration of valve being open time
-#define C4 (uint32_t)261.63;
-#define E4 329.63
-#define G4 392.00
-#define Bb4  466.16
+#define C4   (uint32_t)261.63         //0
+#define Db4  (uint32_t)277.18         //1
+#define Dnat4   (uint32_t)293.66         //2
+#define Eb4  (uint32_t)311.13         //3
+#define E4   (uint32_t)329.63         //4
+#define Fnat4   (uint32_t)349.63         //5
+#define Gb4  (uint32_t)369.99         //6
+#define G4   (uint32_t)392.00         //7
+#define Ab4  (uint32_t)415.30         //8
+#define A4   (uint32_t)440.00
+#define Bb4  (uint32_t)466.16
+#define B4   (uint32_t)493.88
+#define C5   (uint32_t)523.25
+#define Db5  (uint32_t)554.37
+#define Dnat5 (uint32_t)587.33
+#define Eb5  (uint32_t)622.25
+#define TONESPERSONG 4
+#define MAXDEV 8
+#define MINDEV 2
+
 unsigned int masterTimerCounter = 0;
 unsigned int phase1 = 1;
 unsigned int phase2 = 0;
@@ -34,11 +51,20 @@ unsigned int phase3 = 0;
 unsigned int i = 0;                   //Tone Index
 unsigned int play = 1;                //Play = 1; Pause = 0 GUI Controlled
 unsigned int lickWindow = 0;          //Check if licked during window
+
+int sum;
 uint32_t ui32Length1;
 uint32_t ui32Length2;
 uint32_t ui32Length3;
 uint32_t openDuration;
 uint32_t ui32PWMClock;
+
+uint32_t tones[] = {C4,Db4,Dnat4,Eb4,E4,Fnat4,Gb4,G4,Ab4,A4,Bb4,B4,C5,Db5,Dnat5,Eb5};
+uint32_t song[] = {C4, E4, G4, C5};
+uint32_t templateSong[] = {0,3,6, 11};
+
+int tonesIndex[TONESPERSONG];
+int songDeviation=0;
 
 /*PWM Load Values for PWM signals
   These load values are in units of PWM Clock ticks and needed in the
@@ -67,13 +93,15 @@ void Tone3TimerHandler(void);
 void Tone4TimerHandler(void);
 void UART0IntHandler(void);
 void RLSendMessage(void);
+void shuffleSong(void);
+int computeSongDeviation(void);
 
 int main(void)
 {
-    //Configure System Clock to run at 40MHz
+    //Configure System Clock to run at 12.5MHz
     SysCtlClockSet(SYSCTL_SYSDIV_16|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
     SysCtlPWMClockSet(SYSCTL_PWMDIV_1);  // configure the PWM clock to run at same frequency
-    ui32Length1= (SysCtlClockGet()/0.5);
+    ui32Length1 = (SysCtlClockGet()/2.66667);
     openDuration = (SysCtlClockGet()*OPENVALVETIME);
     enablePeripherals();
     setUpMasterTimer();
@@ -127,7 +155,7 @@ void enablePeripherals(void)
 }
 
 void configurePWM(void){
-   //Configure M0PWM6 for PD0 and M0PWM7 for PD1
+   //Configure M1PWM0 for PD0 and M0PWM7 for PD1
    GPIOPinTypePWM(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1);
    GPIOPinConfigure(GPIO_PD0_M1PWM0);
    GPIOPinConfigure(GPIO_PD1_M0PWM7);
@@ -141,25 +169,56 @@ void configurePWM(void){
    GPIOPinConfigure(GPIO_PE4_M0PWM4);
 
    ui32PWMClock = SysCtlClockGet();
-   pwmLoad1 = ui32PWMClock/C4;
-   pwmLoad2 = ui32PWMClock/E4 - 1;
-   pwmLoad3 = ui32PWMClock/G4 - 1;
-   pwmLoad4 = ui32PWMClock/Bb4 - 1;
+
 
    PWMGenConfigure(PWM1_BASE, PWM_GEN_0, PWM_GEN_MODE_DOWN);
-   PWMGenPeriodSet(PWM1_BASE, PWM_GEN_0, pwmLoad1);
-   PWMPulseWidthSet(PWM1_BASE, PWM_GEN_0, 0.5*pwmLoad1);
+
    PWMGenConfigure(PWM0_BASE, PWM_GEN_3, PWM_GEN_MODE_DOWN);
-   PWMGenPeriodSet(PWM0_BASE, PWM_GEN_3, pwmLoad2);
-   PWMPulseWidthSet(PWM0_BASE, PWM_GEN_3, 0.5*pwmLoad2);
+
    PWMGenConfigure(PWM0_BASE, PWM_GEN_1, PWM_GEN_MODE_DOWN);
-   PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, pwmLoad3);
-   PWMPulseWidthSet(PWM0_BASE, PWM_GEN_1, 0.5*pwmLoad3);
+
    PWMGenConfigure(PWM0_BASE, PWM_GEN_2, PWM_GEN_MODE_DOWN);
-   PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, pwmLoad4);
-   PWMPulseWidthSet(PWM0_BASE, PWM_GEN_2, 0.5*pwmLoad4);
 
+}
 
+void shuffleSong(void){
+    int j;
+    do{
+       for(j = 0; j < TONESPERSONG; ++j){
+           tonesIndex[j] = rand()%(16);
+       }
+       for(j = 0; j < TONESPERSONG; ++j){
+           song[j] = tones[tonesIndex[j]];
+       }
+       songDeviation = computeSongDeviation();
+    }while(songDeviation > MAXDEV || songDeviation < MINDEV);
+
+    pwmLoad1 = ui32PWMClock/song[0] - 1;
+    pwmLoad2 = ui32PWMClock/song[1] - 1;
+    pwmLoad3 = ui32PWMClock/song[2] - 1;
+    pwmLoad4 = ui32PWMClock/song[3] - 1;
+
+    PWMGenPeriodSet(PWM1_BASE, PWM_GEN_0, pwmLoad1);
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_0, 0.5*pwmLoad1);
+
+    PWMGenPeriodSet(PWM0_BASE, PWM_GEN_3, pwmLoad2);
+    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, 0.5*pwmLoad2);
+
+    PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, pwmLoad3);
+    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_3, 0.5*pwmLoad3);
+
+    PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, pwmLoad4);
+    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, 0.5*pwmLoad4);
+
+}
+
+int computeSongDeviation(void){
+    int j;
+    sum = 0;
+    for(j = 0; j < 4; ++j){
+        sum += abs(templateSong[j] - tonesIndex[j]);
+    }
+    return sum;
 }
 
 void setUpTonesTimers(void){
@@ -180,6 +239,11 @@ void setUpTonesTimers(void){
     TimerConfigure(TIMER3_BASE, TIMER_CFG_ONE_SHOT);
     IntEnable(INT_TIMER3A);
     TimerIntEnable(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
+    /*Timer 4 for Tone 4 */
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER4);
+    TimerConfigure(TIMER4_BASE, TIMER_CFG_ONE_SHOT);
+    IntEnable(INT_TIMER4A);
+    TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
 }
 
 void playTone(unsigned int i){
@@ -206,8 +270,9 @@ void playTone(unsigned int i){
 
         /*Enable Timers*/
         TimerEnable(TIMER2_BASE,TIMER_A);
-        //Turn on tone
-        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
+
+        PWMOutputState(PWM0_BASE, PWM_OUT_7_BIT, true);
+        PWMGenEnable(PWM0_BASE, PWM_GEN_3);
 
     }
     else if(i == 3){
@@ -216,9 +281,16 @@ void playTone(unsigned int i){
         TimerLoadSet(TIMER3_BASE, TIMER_A, ui32Length3-1);
         /*Enable Timers*/
         TimerEnable(TIMER3_BASE,TIMER_A);
-        //Turn on tone
-        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
+        PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, true);
+        PWMGenEnable(PWM0_BASE, PWM_GEN_1);
 
+    }
+    else if(i == 4){
+        TimerLoadSet(TIMER4_BASE, TIMER_A, ui32Length3-1);
+        /*Enable Timers*/
+        TimerEnable(TIMER4_BASE,TIMER_A);
+        PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, true);
+        PWMGenEnable(PWM0_BASE, PWM_GEN_2);
     }
 }
 
@@ -248,12 +320,13 @@ void MasterTimerIntHandler(void)
     }
     if(phase1 && play && masterTimerCounter%500 == 0 ){
        i++;
+       shuffleSong();
        playTone(i);
-       if(i == 3){
+       if(i == 4){
            phase1 = 0;
        }
     }
-    else if(masterTimerCounter == 2500 && play){
+    else if(masterTimerCounter == 3500 && play){
        phase2 = 1;
        lickWindow = 1;
     }
@@ -284,15 +357,20 @@ void Tone2TimerHandler(void)
 {
     TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
+    PWMOutputState(PWM0_BASE, PWM_OUT_7_BIT, false);
 
 }
 void Tone3TimerHandler(void)
 {
     TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0);
+    PWMOutputState(PWM0_BASE, PWM_OUT_3_BIT, false);
 
 }
 void Tone4TimerHandler(void){
+    TimerIntClear(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
+    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0);
+    PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, false);
 
 
 }
@@ -424,6 +502,10 @@ void RLSendMessage(void){
     UARTCharPut(UART0_BASE, 'i');
     UARTCharPut(UART0_BASE, 'c');
     UARTCharPut(UART0_BASE, 'k');
-    UARTCharPut(UART0_BASE, ' ');
+    unsigned int bla = rand();
+    UARTCharPut(UART0_BASE, sizeof(bla));
+    UARTCharPut(UART0_BASE, bla>>16);
+    UARTCharPut(UART0_BASE, bla>>8);
+    UARTCharPut(UART0_BASE, bla);
     UARTCharPut(UART0_BASE, '\n');
 }
