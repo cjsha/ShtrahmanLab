@@ -14,8 +14,7 @@
  * PA3 - Right Lick
  *
  * Tone and Filter Signals:
- * PA7 - Tone 1 (M1PWM5)
- * PF1- Filter Clock Signal 1 (M1PWM3)
+   PE4 M0PWM4, Filter Clock - PB4 M0PWM2.
  *
  * Amplifier Standby:
  * PF4 - Always HIGH
@@ -31,6 +30,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include "inc/tm4c123gh6pm.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
@@ -79,6 +79,7 @@
 #define MAXDEV 8
 #define MINDEV 2
 #define SONGBLOCKLENGTH 3
+#define PIN_MASK 0x0C
 //outerPhases (training phases) 0,1,2 and 3
 unsigned int phase;
 unsigned int outerPhase0 = 1;
@@ -95,8 +96,6 @@ unsigned int breakPeriod = 500;
 unsigned int atLeastOneCorrect = 0;
 unsigned int biasCounter = 3;
 /*Lick Window Variables*/
-unsigned int leftLick = 0;
-unsigned int rightLick = 0;
 unsigned int leftValveOpen = 0;
 unsigned int rightValveOpen = 0;
 unsigned int openedOnce = 0;
@@ -104,7 +103,6 @@ unsigned int openedOnce = 0;
 unsigned int correct = 0;
 unsigned int incorrect = 0;
 unsigned int licked;
-unsigned int earlyLick = 0;
 unsigned int alreadyTransmitted = 0;
 
 
@@ -114,9 +112,8 @@ unsigned int masterTimerCounter = 0;
 unsigned int phase1 = 1;
 unsigned int phase2 = 0;
 unsigned int phase3 = 0;
-unsigned int i = 0;                   //Tone Index
+unsigned int tone = 0;                   //Tone Index
 unsigned int play = 0;                //Play = 1; Pause = 0 GUI Controlled
-unsigned int lickWindow = 0;          //Check if licked during window
 unsigned int cycleCounter = 1;
 unsigned int minDev;                  //Minimum and maximum deviations
 unsigned int maxDev;                  //for computing residual of tones from template song
@@ -138,7 +135,6 @@ unsigned int encouragementDrop;
  */
 double       delay;
 double       punishDuration;
-unsigned int tonesPerSong = TONESPERSONG;
 unsigned int lickWindowDuration = LICKWINDOWDURATION;
 int toneDuration = 1;
 double       timeBetweenTones = 1.0*TIMEBETWEENTONES;
@@ -152,7 +148,6 @@ double       rightValveOpenTime = OPENVALVETIME;
 double       leftValveOpenTime = OPENVALVETIME;
 double       timeBetweenRewardPhase1;
 double       noLickEncouragementTrials;
-int sum;
 int totalTrials = 100;
 int trial = 0;
 int j = 0;
@@ -166,15 +161,18 @@ uint32_t ui32Length3;
 uint32_t rightOpenDuration;
 uint32_t leftOpenDuration;
 uint32_t ui32PWMClock;
-uint32_t noTones = 0; //used to keep track of how many tones less than 6 per song
-uint32_t tones[] = {C4,Db4,Dnat4,Eb4,E4,Fnat4,Gb4,G4,Ab4,A4,Bb4,B4,C5,Db5,Dnat5,Eb5,E5};
-uint32_t song[] = {C4, E4, G4, C5};
+uint32_t  tones[] = {C4,Db4,Dnat4,Eb4,E4,Fnat4,Gb4,G4,Ab4,A4,Bb4,B4,C5,Db5,Dnat5,Eb5,E5};
+uint32_t  song[] = {C4, E4, G4, C5};
 uint32_t filterClockFreq[6];
-uint32_t templateSong1[] = {C4, E4, G4, C5};
-uint32_t templateSong[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t  templateSong1[] = {C4, E4, G4, C5};
+uint8_t  templateSong[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint32_t ui32MotorClock;
+uint8_t  lickData[4] = {0x74, 0x00, 0x00, 0x00};
+uint8_t  clearArray[]  = {0x00,0x00,0x00};
+uint8_t  tonesIndex[]  = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+size_t   noTones;       //used to keep track of how many tones less than 6 per song
+size_t   tonesPerSong;
 
-int tonesIndex[]  = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 int songDeviation =  0;
 
 /*PWM Load Values for PWM signals
@@ -211,7 +209,7 @@ void RLSendMessage(void);
 void shuffleSong(void);
 void coinFlip(void);
 void updateVariables(void);
-int computeSongDeviation(void);
+uint8_t computeSongDeviation(void);
 void transmitUART(void);
 void configureMotorPWM(void);
 void motorRun(void);
@@ -275,7 +273,7 @@ void enablePeripherals(void)
 
     GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_2); //Left Valve
     GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_1); //Right Valve
-    GPIOPinTypeGPIOInput(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+    GPIOPinTypeGPIOInput(GPIO_PORTA_BASE,  GPIO_PIN_2 | GPIO_PIN_3);
     GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_5); //PC5 punishment LED strip pulled to +12V in shield
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_4); //standby pin PF4
 
@@ -398,7 +396,7 @@ void shuffleSong(void){
     if(nonTemplateBlock){
        do{
           for(j = 0; j < tonesPerSong; ++j){
-              tonesIndex[j] = rand()%(16);
+              tonesIndex[j] = (uint8_t)(rand()%16);
           }
           for(j = 0; j < tonesPerSong; ++j){
               song[j] = tones[tonesIndex[j]];
@@ -469,11 +467,10 @@ void coinFlip(void){
    }
 
 }
-
-int computeSongDeviation(void){
+uint8_t computeSongDeviation(void){
     int j;
-    sum = 0;
-    for(j = 0; j < 4; ++j){
+    uint8_t sum = 0;
+    for(j = 0; j < tonesPerSong; ++j){
         sum += abs(templateSong[j] - tonesIndex[j]);
     }
     return sum;
@@ -525,11 +522,9 @@ void playTone(unsigned int i){
 
          /*Enable Timers*/
          TimerEnable(TIMER1_BASE,TIMER_A);
-         //Turn on tone
-       //  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
-
+         // Turn on tone
+         // GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
          //Tone
-
          PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, pwmLoad[i-1]);
          PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, 0.5*pwmLoad[i-1]);
          PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, true);
@@ -678,182 +673,18 @@ void transmitUART(void){
       UARTCharPut(UART0_BASE, 0x72);
       UARTCharPut(UART1_BASE, 0x72);
       if(!templatePlayed){
-         for(j = 0; j < 6; ++j){
-    //         UARTCharPut(UART0_BASE, (char)tonesIndex[j]);
-
-             UARTCharPut(UART0_BASE, (char)tonesIndex[j]);
-             UARTCharPut(UART1_BASE, (char)tonesIndex[j]);
-
-         }
-//         UARTCharPut(UART0_BASE,'\n');
+         // make this a function
+         UARTSendData(tonesIndex, 6);
       }
       else{
-          for(j = 0; j < 6; ++j){
-                UARTCharPut(UART0_BASE, (char)templateSong[j]);
-                UARTCharPut(UART1_BASE, (char)templateSong[j]);
-           }
-////         UARTCharPut(UART0_BASE,'\n');
+         UARTSendData(templateSong, 6);
       }
 
    } //The following licks where performed during the lick Window
    else if(phase3 /*&& !alreadyTransmitted */){
-       GPIOIntDisable(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-       UARTCharPut(UART0_BASE,0x74);
-       UARTCharPut(UART1_BASE,0x74);
-       if(correct && leftLick && !earlyLick){
-           UARTCharPut(UART0_BASE, 0x12);
-           UARTCharPut(UART1_BASE, 0x12);
-//           UARTCharPut(UART0_BASE,'\n');
-           UARTCharPut(UART0_BASE, (char)songDeviation); //Difficuly
-           UARTCharPut(UART1_BASE, (char)songDeviation);
-//           UARTCharPut(UART0_BASE, '\n');
-           if(outerPhase0){ //If recieved automatic drop but not early
-              UARTCharPut(UART0_BASE, 0x02);
-              UARTCharPut(UART1_BASE, 0x02);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-           else{//Correct, not early and not automatic
-              UARTCharPut(UART0_BASE, 0x00);
-              UARTCharPut(UART1_BASE, 0x00);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-       }
-       else if(correct && rightLick && !earlyLick){
-           UARTCharPut(UART0_BASE, 0x11);
-           UARTCharPut(UART1_BASE, 0x11);
-//           UARTCharPut(UART0_BASE,'\n');
-           UARTCharPut(UART0_BASE, (char)songDeviation); //Difficulty
-           UARTCharPut(UART1_BASE, (char)songDeviation); //Difficulty
-//           UARTCharPut(UART0_BASE, '\n');
-           if(outerPhase0){ //If recieved automatic drop but not early
-              UARTCharPut(UART0_BASE, 0x01);
-              UARTCharPut(UART1_BASE, 0x01);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-           else{//Correct, not early and not automatic
-              UARTCharPut(UART0_BASE, 0x00);
-              UARTCharPut(UART1_BASE, 0x00);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-
-
-       }
-       else if(!correct && leftLick && !earlyLick){
-           UARTCharPut(UART0_BASE, 0x22);
-           UARTCharPut(UART1_BASE, 0x22);
-//           UARTCharPut(UART0_BASE,'\n');
-           UARTCharPut(UART0_BASE, (char)songDeviation); //Difficuly
-           UARTCharPut(UART1_BASE, (char)songDeviation); //Difficuly
-//           UARTCharPut(UART0_BASE, '\n');
-           if(outerPhase0){ //If recieved automatic drop but not early
-              UARTCharPut(UART0_BASE, 0x01);
-              UARTCharPut(UART1_BASE, 0x01);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-           else{//incorrect, not early and not automatic
-              UARTCharPut(UART0_BASE, 0x00);
-              UARTCharPut(UART1_BASE, 0x00);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-
-       }
-       else if(!correct && rightLick && !earlyLick) {
-           UARTCharPut(UART0_BASE, 0x21);
-           UARTCharPut(UART1_BASE, 0x21);
-//           UARTCharPut(UART0_BASE,'\n');
-           UARTCharPut(UART0_BASE, (char)songDeviation); //Difficuly
-           UARTCharPut(UART1_BASE, (char)songDeviation); //Difficuly
-//           UARTCharPut(UART0_BASE, '\n');
-           if(outerPhase0){ //If recieved automatic drop but not early
-              UARTCharPut(UART0_BASE, 0x02);
-              UARTCharPut(UART1_BASE, 0x02);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-           else{//incorrect, not early and not automatic
-              UARTCharPut(UART0_BASE, 0x00);
-              UARTCharPut(UART1_BASE, 0x00);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-           masterTimerCounter = phase3CounterTime;
-
-       }
-       else if(!(rightLick||leftLick)){
-           UARTCharPut(UART0_BASE, 0x00);
-           UARTCharPut(UART1_BASE, 0x00);
-//           UARTCharPut(UART0_BASE,'\n');
-           UARTCharPut(UART0_BASE, (char)songDeviation); //Difficuly
-           UARTCharPut(UART1_BASE, (char)songDeviation); //Difficuly
-//           UARTCharPut(UART0_BASE, '\n');
-           if(outerPhase0){ //If recieved automatic drop but not early
-              if(templatePlayed){
-                 UARTCharPut(UART0_BASE, 0x01);
-                 UARTCharPut(UART1_BASE, 0x01);
-//                 UARTCharPut(UART0_BASE, '\n');
-              }
-              else{
-                 UARTCharPut(UART0_BASE, 0x02);
-                 UARTCharPut(UART1_BASE, 0x02);
-//                 UARTCharPut(UART0_BASE, '\n');
-              }
-           }
-           else{//Correct, not early and not automatic
-              UARTCharPut(UART0_BASE, 0x00);
-              UARTCharPut(UART1_BASE, 0x00);
-//              UARTCharPut(UART0_BASE, '\n');
-           }
-
-       }else if(phase3 && earlyLick){
-           earlyLick = 0; //Clear early lick flag
-           GPIOIntDisable(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-         //  UARTCharPut(UART0_BASE, 0x74); //identifier
-         //  UARTCharPut(UART1_BASE, 0x74);
-           if(rightLick){
-              UARTCharPut(UART0_BASE, 0x00);
-              UARTCharPut(UART1_BASE, 0x00);
-              UARTCharPut(UART0_BASE, (char)songDeviation);
-              UARTCharPut(UART1_BASE, (char)songDeviation);
-           }
-           else{
-              UARTCharPut(UART0_BASE, 0x00);
-              UARTCharPut(UART1_BASE, 0x00);
-              UARTCharPut(UART0_BASE, (char)songDeviation);
-              UARTCharPut(UART1_BASE, (char)songDeviation);
-           }
-              /*First digit indicates earliness and which side.
-                Second digit correct or Automatic drop or not. */
-
-           if(leftLick && outerPhase0 && templatePlayed){ //if left early lick and automatic
-              UARTCharPut(UART0_BASE, 0x22);
-              UARTCharPut(UART1_BASE, 0x22);
-       //     UARTCharPut(UART0_BASE, '\n');
-              }
-           else if(leftLick && outerPhase0 && !templatePlayed){ //if left early automatic
-               UARTCharPut(UART0_BASE, 0x21);
-               UARTCharPut(UART1_BASE, 0x21);
-       //      UARTCharPut(UART0_BASE, '\n');
-              }
-           else if(rightLick && outerPhase0 && !templatePlayed){ //right early,, left aotomatic
-               UARTCharPut(UART0_BASE, 0x11);
-               UARTCharPut(UART1_BASE, 0x11);
-       //      UARTCharPut(UART0_BASE, '\n');
-              }
-           else if(rightLick && outerPhase0 && templatePlayed){ //right early, right automatic
-               UARTCharPut(UART0_BASE, 0x12);
-               UARTCharPut(UART1_BASE, 0x12);
-       //           UARTCharPut(UART0_BASE, '\n');
-              }
-           else if(rightLick){                       //right early no automatic
-               UARTCharPut(UART0_BASE, 0x10);
-               UARTCharPut(UART1_BASE, 0x10);
-       //      UARTCharPut(UART0_BASE, '\n');
-           }
-           else if(leftLick){                        //left early not automaticaly
-               UARTCharPut(UART0_BASE, 0x20);
-               UARTCharPut(UART1_BASE, 0x20);
-       //      UARTCharPut(UART0_BASE, '\n');
-           }
-               alreadyTransmitted = 1;
-          }
+      lickData[2] = (char)songDeviation;
+      UARTSendData(lickData, sizeof(lickData));
+      memcpy(&lickData[1], clearArray, sizeof(clearArray));
    }
 
    GPIOIntEnable(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
@@ -879,7 +710,7 @@ void MasterTimerIntHandler(void)
     }
     if((phase1 && play && masterTimerCounter%(int)(playToneCounter) == 0) || masterTimerCounter == 1){
        motorDutyCycle = 0.10;
-       i++;
+       tone++;
        shuffleSong();
        if(templatePlayed){
            GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6, GPIO_PIN_6);
@@ -889,39 +720,34 @@ void MasterTimerIntHandler(void)
            GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, GPIO_PIN_7);
            GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6, 0);
        }
-       playTone(i);
-       if(i == tonesPerSong){
+       playTone(tone);
+       if(tone == tonesPerSong){
            transmitUART();
            phase1 = 0;
        }
 
     }
     else if(masterTimerCounter == phase2CounterTime+1 && play){
-       //Reset lick paramaters
-       //leftLick = 0;
-       //rightLick = 0;
-       //earlyLick = 0;
-     //  noLick = 0;
-
        /*TURN OFF TESTING PINS HERE*/
        GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0);
        GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6, 0);
        phase2 = 1;
-       lickWindow = 1;
 
        encouragementDropRandom();
-       if((outerPhase0 && templatePlayed )||( ((encouragementDrop && (!outerPhase0 &&templatePlayed)) &&(noLickEncouragementCount == noLick))  )){ // Free Drops
+       if((outerPhase0 && templatePlayed )|| (encouragementDrop && !outerPhase0 && templatePlayed /*(noLickEncouragementCount == noLick))*/ )){ // Free Drops
            openRightValve();
+           lickData[3] = (1|3<<4);
        }
-       else if((outerPhase0 && !templatePlayed) ||( ((encouragementDrop && (!outerPhase0 && !templatePlayed)) &&(noLickEncouragementCount == noLick))  )){
+       else if((outerPhase0 && !templatePlayed) ||( encouragementDrop && !outerPhase0 && !templatePlayed)){
           openLeftValve();
+          lickData[3] |= (2|3<<4);
        }
     }
     else if(masterTimerCounter == (phase3CounterTime) && play){
        phase3 = 1;
        phase2 = 0;
        transmitUART();
-       if(!(rightLick||leftLick)){ //if neither lick was detected, then transmit this info to GUI
+       if(lickData[1] == 0){ //if neither lick was detected, then transmit this info to GUI
 //          transmitUART();          //Because not need to re-send info to GUI, also increment noLick Count
           if( noLickEncouragementCount == noLick){
               noLick = 0;
@@ -935,11 +761,6 @@ void MasterTimerIntHandler(void)
            motorRun();
        }
 
-       lickWindow = 0;
-       earlyLick = 0;
-       rightLick = 0;
-       leftLick = 0;
-
     } //Punishment if mouse licked incorrectly, not punished for no licking
     else if(masterTimerCounter == (phase4CounterTime) && play && (!correct&&!noLick)){
         poop = 1;
@@ -951,7 +772,7 @@ void MasterTimerIntHandler(void)
        motorOff();
 
     }else if(masterTimerCounter == (phase4CounterTime + breakPeriod)&&!(!correct&&!noLick)){
-        i = 0;
+        tone = 0;
         openedOnce = 0; // Reset this flag for the next Lick Window
         correct = 0;
         phase3 = 0;
@@ -993,7 +814,7 @@ void MasterTimerIntHandler(void)
         GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5, 0);
 
     }else if(masterTimerCounter == (phase4CounterTime + punishDuration + breakPeriod) && play && (!correct&&!noLick)){
-        i = 0;
+        tone = 0;
         openedOnce = 0; // Reset this flag for the next Lick Window
         correct = 0;
         phase3 = 0;
@@ -1034,27 +855,8 @@ void Tone1TimerHandler(void)
 {
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
 
-    if(i == 1){
-       PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, false);
-       PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-    }
-    else if(i == 2){
-        PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, false);
-        PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-    }
-    else if(i == 3){
-        PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, false);
-        PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-    }
-    else {
-        PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, false);
-        PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
-        if(tonesPerSong == i){
-            lickWindow = 1; //As soon as tone stops playing,
-                            //Enable lick window
-        }
-    }
-
+    PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, false);
+    PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, false);
 }
 
 void Tone2TimerHandler(void)
@@ -1093,78 +895,57 @@ void motorTimerHandler(void){
     }
 }
 /*
- * Note: openedOnce flag is used to debounce the grounding of the lickPort pin
- * This was mainly useful when debugging. Schmidtt trigger debounce in the behavior shield
- * makes this feature obselete.
+ * Direction of lick: LSB
+ * Correctness: MSB
  */
 void LickPortAIntHandler(void)
 {
+    uint8_t direction;
+    uint8_t buffer = ((~GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_3|GPIO_PIN_2))&PIN_MASK)>>2;
     GPIOIntClear(GPIO_PORTA_BASE, GPIO_PIN_2| GPIO_PIN_3);
-    if(!GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_3)){ //if lick port Pin is grounded
-        if(lickWindow){
-           leftLick = 1;   //dont' send to left box of GUI if not during lick window
-           rightLick = 0;
-        }
-        UARTCharPut(UART0_BASE, 0xfe);
-        UARTCharPut(UART1_BASE, 0xfe);
-        if(!lickWindow && !phase3){
-           earlyLick = 1;
-        }else{
-            earlyLick = 0;
-        }
-
-        if(!openedOnce && lickWindow &&(leftLick == nonTemplatePlayed)){
+    if(!openedOnce){
+        lickData[1] = buffer;
+        //lickData[3] = lickData[1];
+        //lickData[1] |= (lickData[1]&(1<<nonTemplatePlayed))<<(4-nonTemplatePlayed);
+        if(lickData[1]>>1 == 1 && nonTemplatePlayed == 1){
            openLeftValve();
            if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
               atLeastOneCorrect = 1;
            }
            correct = 1;
-           openedOnce = 1;
+           lickData[1] |= 1<<4;
            //transmitUART();
         }
-        else if(!openedOnce && lickWindow &&(leftLick == templatePlayed)){
-            openedOnce = 1; /* Please See Note */
-            correct = 0;
-            //make motor run here
-            motorRun();
-          //  transmitUART();
+        else if(lickData[1]>>1 == 1 && nonTemplatePlayed == 0){
+           correct = 0;
+           lickData[1] |= 1<<5;
+           motorRun();
+        }
+        else if(lickData[1]&1 == 1 && templatePlayed == 1){
+            openRightValve();
+            correct = 1;
+            lickData[1] |= 1<<4;
             //if incorrect, make lick window end early.
             //we do this by "fast-forwarding" to time where lick window is over
-        }
-        //TODO: Update correct/incorrect percentage
-    }
-    else if( !GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_2)){
-        if(lickWindow){
-           leftLick = 0;
-           rightLick = 1;
-        }
-        UARTCharPut(UART0_BASE, 0xfd);
-        UARTCharPut(UART1_BASE, 0xfd);
-        if(!lickWindow && !phase3){
-           earlyLick = 1;
-        }else{
-           earlyLick = 0;
-        }
+            //TODO: Update correct/incorrect percentage
+       }
+       else if(lickData[1]&1 == 1 && templatePlayed == 0) {
+          correct = 0;
+          lickData[1] |= 1<<5;
+       }
+       if(phase1){
+           //lickData[3] = (lickData[1]);
+       }
+       else{
+           lickData[3] = 0x00;
+       }
 
-        if(!openedOnce && lickWindow && (rightLick == templatePlayed)){
-           openRightValve();
-           if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
-              atLeastOneCorrect = 1;
-           }
-           correct = 1;
-           openedOnce = 1; /*Please see note*/
-        //   transmitUART();
-        }
-        else if(!openedOnce && lickWindow && (rightLick == nonTemplatePlayed)){ //incorrect
-            openedOnce = 1; /*Please see note*/
-            correct = 0;
-            motorRun();
-            //transmitUART();
+     }
 
-        }
-
-    }
-    GPIOIntEnable(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+     UARTCharPut(UART0_BASE, 0xfe);
+     UARTCharPut(UART1_BASE, 0xfe);
+     openedOnce = 1;
+     GPIOIntEnable(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
 
 }
 
@@ -1281,7 +1062,7 @@ void updateVariables(void){
         }
         tonesPerSong = MAXSONGLENGTH - noTones;
         //store song index into array
-        for(i = 0; i < tonesPerSong; ++i){
+        for(i = 0; i < tonesPerSong; ++i) {
             templateSong[i] = hexChars[i + 3];
         }
         totalTrials = ((int)hexChars[9]<<8)|hexChars[10];
@@ -1324,7 +1105,7 @@ void UART0IntHandler(void){
        {
            hexChars[j] = incomingChar;
            j++;
-           if (j >= 23)
+           if (j >= 24)
            {
                updateVariables();
                updatedVars = 1; //We are now allowed to toggle play/pause
@@ -1354,4 +1135,17 @@ void UART0IntHandler(void){
        {
            GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1|GPIO_PIN_2 , 0);
        }
+
+}
+
+void UARTSendData(uint8_t *buf, size_t len)
+{
+   int idx;
+   char sendChar;
+   for(idx = 0; idx < len; ++idx) {
+     sendChar = *buf;
+     UARTCharPut(UART0_BASE, (char)sendChar);
+     ++buf;
+   }
+  // UARTCharPut(UART0_BASE, '\n');
 }
