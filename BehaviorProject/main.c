@@ -4,7 +4,7 @@
  *
  * If template song is played, lick right else lick left.
  *
- * PIN MAPPING:
+ * PIN LAYOUT:
  *
  * Valve and Lick
  * PE2 - Left Valve
@@ -276,6 +276,8 @@ void enablePeripherals(void)
     GPIOPinTypeGPIOInput(GPIO_PORTA_BASE,  GPIO_PIN_2 | GPIO_PIN_3);
     GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_5); //PC5 punishment LED strip pulled to +12V in shield
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_4); //standby pin PF4
+    GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, GPIO_PIN_6|GPIO_PIN_7);
+    GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_6, GPIO_PIN_6);
 
     /*TEST PIN ENABLE*/
     GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_6);
@@ -453,7 +455,7 @@ void encouragementDropRandom(void){
 void coinFlip(void){
    if(outerPhase2){
       if(rand()%2 == 0){
-          nonTemplateBlock = !nonTemplateBlock;
+          nonTemplateBlock = (!nonTemplateBlock)&1;
           biasCounter = 3;
       }
       else{
@@ -679,7 +681,6 @@ void transmitUART(void){
       else{
          UARTSendData(templateSong, 6);
       }
-
    } //The following licks where performed during the lick Window
    else if(phase3 /*&& !alreadyTransmitted */){
       lickData[2] = (char)songDeviation;
@@ -735,8 +736,8 @@ void MasterTimerIntHandler(void)
 
        encouragementDropRandom();
        if((outerPhase0 && templatePlayed )|| (encouragementDrop && !outerPhase0 && templatePlayed /*(noLickEncouragementCount == noLick))*/ )){ // Free Drops
-           openRightValve();
-           lickData[3] = (1|3<<4);
+          openRightValve();
+          lickData[3] = (1|3<<4);
        }
        else if((outerPhase0 && !templatePlayed) ||( encouragementDrop && !outerPhase0 && !templatePlayed)){
           openLeftValve();
@@ -903,50 +904,60 @@ void LickPortAIntHandler(void)
     uint8_t direction;
     uint8_t buffer = ((~GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_3|GPIO_PIN_2))&PIN_MASK)>>2;
     GPIOIntClear(GPIO_PORTA_BASE, GPIO_PIN_2| GPIO_PIN_3);
+    if( buffer>>1 == 1) {
+        UARTCharPut(UART0_BASE, 0xfe);
+    }
+    else if(buffer & 1 == 1) {
+        UARTCharPut(UART0_BASE, 0xfd);
+    }
     if(!openedOnce){
         lickData[1] = buffer;
-        //lickData[3] = lickData[1];
-        //lickData[1] |= (lickData[1]&(1<<nonTemplatePlayed))<<(4-nonTemplatePlayed);
-        if(lickData[1]>>1 == 1 && nonTemplatePlayed == 1){
-           openLeftValve();
+        if(lickData[1]>>1 == 1 && !templatePlayed){
+           lickData[1] = 2;
+           correct = 0;
+           correct = 1;
            if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
               atLeastOneCorrect = 1;
            }
-           correct = 1;
            lickData[1] |= 1<<4;
-           //transmitUART();
+           openRightValve();
         }
-        else if(lickData[1]>>1 == 1 && nonTemplatePlayed == 0){
-           correct = 0;
+        else if(lickData[1]>>1 == 1 && templatePlayed){
+           correct = 1;
+           if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
+              atLeastOneCorrect = 1;
+           }
+           lickData[1] = 2;
            lickData[1] |= 1<<5;
-           motorRun();
+           openRightValve();
         }
-        else if(lickData[1]&1 == 1 && templatePlayed == 1){
-            openRightValve();
+        else if(lickData[1]&1 == 1 && templatePlayed == 1){  // left lick and template played
+            lickData[1] = 1;
             correct = 1;
+            if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
+               atLeastOneCorrect = 1;
+            }
+            openLeftValve();
             lickData[1] |= 1<<4;
             //if incorrect, make lick window end early.
             //we do this by "fast-forwarding" to time where lick window is over
             //TODO: Update correct/incorrect percentage
        }
-       else if(lickData[1]&1 == 1 && templatePlayed == 0) {
+       else if(lickData[1]&1 == 1 && templatePlayed == 0) {  // left lick and non-template played
+          lickData[1] = 1;
           correct = 0;
           lickData[1] |= 1<<5;
        }
        if(phase1){
-           //lickData[3] = (lickData[1]);
+
        }
        else{
            lickData[3] = 0x00;
        }
 
      }
-
-     UARTCharPut(UART0_BASE, 0xfe);
-     UARTCharPut(UART1_BASE, 0xfe);
      openedOnce = 1;
      GPIOIntEnable(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-
 }
 
 void openRightValve(void){
@@ -1065,7 +1076,7 @@ void updateVariables(void){
         for(i = 0; i < tonesPerSong; ++i) {
             templateSong[i] = hexChars[i + 3];
         }
-        totalTrials = ((int)hexChars[9]<<8)|hexChars[10];
+        totalTrials = (((int)hexChars[9])<<8)|hexChars[10];
         delay = ((int)hexChars[11]<<8)|hexChars[12];
         delay = 10*delay;
         punishDuration = ((int)hexChars[13]<<8)|hexChars[14];
@@ -1147,5 +1158,4 @@ void UARTSendData(uint8_t *buf, size_t len)
      UARTCharPut(UART0_BASE, (char)sendChar);
      ++buf;
    }
-  // UARTCharPut(UART0_BASE, '\n');
 }
