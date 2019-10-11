@@ -149,7 +149,8 @@ double       leftValveOpenTime = OPENVALVETIME;
 double       timeBetweenRewardPhase1;
 double       noLickEncouragementTrials;
 int totalTrials = 100;
-int trial = 0;
+unsigned int trial = 0;
+unsigned int thing = 0;
 int j = 0;
 
 int poop;
@@ -216,13 +217,13 @@ void motorRun(void);
 void motorOff(void);
 void setUpRampTimer(void);
 void motorTimerHandler(void);
+void UART_OutChar(unsigned char data);
 
 int main(void)
 {
     SysCtlClockSet(SYSCTL_SYSDIV_16|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
     SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
-
-    playToneCounter = timeRes*(toneDuration + timeBetweenTones);
+    playToneCounter = timeRes*(toneDuration + timeBetweenTones); // Convert from ms to our own unitless time keeping unit (interrupt clock tick)
     phase2CounterTime = tonesPerSong*(playToneCounter);
     phase3CounterTime = (phase2CounterTime + lickWindowDuration);
     phase4CounterTime = (phase3CounterTime + MOTORLENGTH);
@@ -301,6 +302,16 @@ void enablePeripherals(void)
     enableUART();
     //Enable Pin Interrupt
 //    GPIOIntEnable(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+
+}
+
+// Wait for buffer to be not full, then output
+
+void UART_OutChar(unsigned char data){
+
+  while((UART0_FR_R&0x0020) != 0);      // wait until TXFF is 0
+
+  UART0_DR_R = data;
 
 }
 
@@ -519,7 +530,6 @@ void playTone(unsigned int i){
     if(i == 1){
 
          //We want the four tones played consecutively to last a total of
-         //1.5 seconds, therefore the duration of each tone is such:
          TimerLoadSet(TIMER1_BASE, TIMER_A, ui32Length1 - 1);
 
          /*Enable Timers*/
@@ -532,7 +542,6 @@ void playTone(unsigned int i){
          PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, true);
          PWMGenEnable(PWM0_BASE, PWM_GEN_2);
          //Filter Clock
-
          PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, filterPWMLoad[i-1]);
          PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, 0.5*filterPWMLoad[i-1]);
          PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
@@ -698,12 +707,19 @@ void MasterTimerIntHandler(void)
     if(masterTimerCounter == 0 &&play){
         alreadyTransmitted = 0; //clear the 'Already Transmitted' Flag to transmit
                                 //lick data
-        UARTCharPut(UART0_BASE, 0x71);
-        UARTCharPut(UART1_BASE, 0x71);
-        UARTCharPut(UART0_BASE, (char)(trial>>8));
-        UARTCharPut(UART0_BASE, (char)(trial));
-        UARTCharPut(UART1_BASE, (char)(trial>>8));
-        UARTCharPut(UART1_BASE, (char)(trial));
+//        UARTCharPut(UART0_BASE, 0x71);
+//        UARTCharPut(UART1_BASE, 0x71);
+          UART_OutChar(0x71);
+        if(trial > 245) {
+            UART0_DR_R = (trial>>8)&0xFF;
+            UART0_DR_R = trial;
+        }
+        else{
+             UART_OutChar((unsigned char)(trial>>8)&0xFF);
+             UART_OutChar((unsigned char)(trial));
+//           UARTCharPut(UART1_BASE, (unsigned char)(trial>>8)&0xFF);
+//           UARTCharPut(UART1_BASE, (unsigned char)(trial));
+        }
     }
 
     if(play){
@@ -814,7 +830,7 @@ void MasterTimerIntHandler(void)
         motorOff();
         GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5, 0);
 
-    }else if(masterTimerCounter == (phase4CounterTime + punishDuration + breakPeriod) && play && (!correct&&!noLick)){
+    }else if(masterTimerCounter == (phase4CounterTime + punishDuration + breakPeriod) && play){
         tone = 0;
         openedOnce = 0; // Reset this flag for the next Lick Window
         correct = 0;
@@ -842,6 +858,8 @@ void MasterTimerIntHandler(void)
                atLeastOneCorrect = 0;
                coinFlip();
             }
+        }else if(outerPhase4){
+            coinFlip();
         }
         ++trial;
         if(trial == totalTrials){
@@ -910,66 +928,62 @@ void LickPortAIntHandler(void)
     else if(buffer & 1 == 1) {
         UARTCharPut(UART0_BASE, 0xfd);
     }
-    if(!openedOnce){
-        lickData[1] = buffer;
-        if(lickData[1]>>1 == 1 && !templatePlayed){
-           lickData[1] = 2;
-           correct = 0;
-           correct = 1;
-           if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
-              atLeastOneCorrect = 1;
-           }
-           lickData[1] |= 1<<4;
-           openRightValve();
-        }
-        else if(lickData[1]>>1 == 1 && templatePlayed){
-           correct = 1;
-           if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
-              atLeastOneCorrect = 1;
-           }
-           lickData[1] = 2;
-           lickData[1] |= 1<<5;
-           openRightValve();
-        }
-        else if(lickData[1]&1 == 1 && templatePlayed == 1){  // left lick and template played
-            lickData[1] = 1;
-            correct = 1;
-            if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
-               atLeastOneCorrect = 1;
-            }
-            openLeftValve();
-            lickData[1] |= 1<<4;
-            //if incorrect, make lick window end early.
-            //we do this by "fast-forwarding" to time where lick window is over
-            //TODO: Update correct/incorrect percentage
-       }
-       else if(lickData[1]&1 == 1 && templatePlayed == 0) {  // left lick and non-template played
-          lickData[1] = 1;
-          correct = 0;
-          lickData[1] |= 1<<5;
-       }
-       if(phase1){
+    if(phase2){
+       if(!openedOnce){
+          lickData[1] = buffer;
+          if(lickData[1]>>1 == 1 && !templatePlayed){      // Left Lick and non-template (correct)
+              lickData[1] = 2;
+              correct = 1;
+              if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
+                 atLeastOneCorrect = 1;
+              }
+              lickData[1] |= 1<<4;
+              openLeftValve();
+          }
+          else if(lickData[1]>>1 == 1 && templatePlayed){  // Left lick and template )incorrect
+              correct = 0;
+              lickData[1] = 2;
+              lickData[1] |= 1<<5;
+          }
+          else if(lickData[1]&1 == 1 && templatePlayed == 1){  // Right lick and template played
+              lickData[1] = 1;
+              correct = 1;
+              if((outerPhase2||outerPhase3) && !atLeastOneCorrect){
+                 atLeastOneCorrect = 1;
+               }
+               openRightValve();
+               lickData[1] |= 1<<4;
+               //if incorrect, make lick window end early.
+               //we do this by "fast-forwarding" to time where lick window is over
+               //TODO: Update correct/incorrect percentage
+          }
+          else if(lickData[1]&1 == 1 && templatePlayed == 0) {  // Right lick and non-template played
+             lickData[1] = 1;
+             correct = 0;
+             lickData[1] |= 1<<5;
+          }
+          if(phase1){
 
+          }
+          else{
+             lickData[3] = 0x00;
+          }
        }
-       else{
-           lickData[3] = 0x00;
-       }
-
-     }
-     openedOnce = 1;
+       openedOnce = 1;
+    }
      GPIOIntEnable(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
 }
 
 void openRightValve(void){
    rightValveOpen = 1;
    leftValveOpen = 0;
-   GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_PIN_1);
+   GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_2, GPIO_PIN_2);
    enableValveTimer();
 }
 void openLeftValve(void){
    rightValveOpen = 0;
    leftValveOpen = 1;
-   GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_2, GPIO_PIN_2);
+   GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_PIN_1);
    enableValveTimer();
 }
 
@@ -992,11 +1006,11 @@ void valveInterruptHandler(void){
     //close valve after a predetermined amount of time
     if(leftValveOpen){
        TimerIntClear(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
-       GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_2, 0);
+       GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1, 0);
     }
     else if(rightValveOpen){
         TimerIntClear(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
-        GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1, 0);
+        GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_2, 0);
 
     }
 }
@@ -1086,7 +1100,7 @@ void updateVariables(void){
         /*
          * A note on units
          * */
-        toneDuration = 10*(int)hexChars[17];        //Units of 10 ms. eg. 100 units = 100 ms = 1 Second
+        toneDuration = 10*(int)hexChars[17];        //Units of 10 ms. ex. if user inputs 100, then 100*10 =1000 ms = 1 sec.
         timeBetweenTones = 10*(int)hexChars[18];
         rightValveOpenTime = (double)hexChars[19]/100;
         leftValveOpenTime = (double)hexChars[20]/100;
@@ -1146,7 +1160,6 @@ void UART0IntHandler(void){
        {
            GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1|GPIO_PIN_2 , 0);
        }
-
 }
 
 void UARTSendData(uint8_t *buf, size_t len)

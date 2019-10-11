@@ -1,7 +1,7 @@
 ******************************************************************************
                   TI ARM Linker PC v16.9.0                     
 ******************************************************************************
->> Linked Tue Jun 25 16:15:06 2019
+>> Linked Fri Oct 11 13:29:48 2019
 
 OUTPUT FILE NAME:   <BehaviorProject.out>
 ENTRY POINT SYMBOL: "_c_int00"  address: 00005745
@@ -97,8 +97,8 @@ section   page    origin      length       input sections
                   00006050    00000008     uart.obj (.const)
 
 .cinit     0    00006058    000000e0     
-                  00006058    000000a7     (.cinit..data.load) [load image, compression = lzss]
-                  000060ff    00000001     --HOLE-- [fill = 0]
+                  00006058    000000a5     (.cinit..data.load) [load image, compression = lzss]
+                  000060fd    00000003     --HOLE-- [fill = 0]
                   00006100    0000000c     (__TI_handler_table)
                   0000610c    00000004     --HOLE-- [fill = 0]
                   00006110    00000008     (.cinit..bss.load) [load image, compression = zero_init]
@@ -203,15 +203,15 @@ MODULE SUMMARY
        Total:                         2306    0         28     
                                                                
        Stack:                         0       0         512    
-       Linker Generated:              0       219       0      
+       Linker Generated:              0       217       0      
     +--+------------------------------+-------+---------+---------+
-       Grand Total:                   22340   2543      1667   
+       Grand Total:                   22340   2541      1667   
 
 
 LINKER GENERATED COPY TABLES
 
 __TI_cinit_table @ 00006120 records: 3, size/record: 8, table size: 24
-	.data: load addr=00006058, load size=000000a7 bytes, run addr=20000470, run size=00000153 bytes, compression=lzss
+	.data: load addr=00006058, load size=000000a5 bytes, run addr=20000470, run size=00000153 bytes, compression=lzss
 	.bss: load addr=00006110, load size=00000008 bytes, run addr=200005c8, run size=000000c4 bytes, compression=zero_init
 	.vtable: load addr=00006118, load size=00000008 bytes, run addr=20000000, run size=0000026c bytes, compression=zero_init
 
@@ -297,8 +297,8 @@ address   name
 00004cc3  IntRegister                     
 0000502b  IntTrigger                      
 00004d15  IntUnregister                   
-00001639  LickPortAIntHandler             
-00000fb5  MasterTimerIntHandler           
+00001651  LickPortAIntHandler             
+00000fd9  MasterTimerIntHandler           
 00003f73  PWMClockGet                     
 00003f53  PWMClockSet                     
 00003a9d  PWMDeadBandDisable              
@@ -432,10 +432,10 @@ UNDEFED   SHT$$INIT_ARRAY$$Limit
 00004613  TimerUpdateMode                 
 00004437  TimerValueGet                   
 00004453  TimerValueGet64                 
-00001519  Tone1TimerHandler               
-00001539  Tone2TimerHandler               
-00001561  Tone3TimerHandler               
-00001581  Tone4TimerHandler               
+0000152d  Tone1TimerHandler               
+00001551  Tone2TimerHandler               
+00001579  Tone3TimerHandler               
+00001599  Tone4TimerHandler               
 00001c7d  UART0IntHandler                 
 00004c43  UART9BitAddrSend                
 00004c1d  UART9BitAddrSet                 
@@ -485,6 +485,7 @@ UNDEFED   SHT$$INIT_ARRAY$$Limit
 00004a05  UARTSpaceAvail                  
 000049d5  UARTTxIntModeGet                
 000049b9  UARTTxIntModeSet                
+00000421  UART_OutChar                    
 2000046c  __STACK_END                     
 00000200  __STACK_SIZE                    
 2000046c  __STACK_TOP                     
@@ -543,21 +544,21 @@ ffffffff  binit
 20000494  breakPeriod                     
 200004f8  breakWindow                     
 200005c0  clearArray                      
-00000841  coinFlip                        
-000008b3  computeSongDeviation            
-000004cd  configureMotorPWM               
-0000045d  configurePWM                    
-00000421  configureSinglePWM              
+00000861  coinFlip                        
+000008d3  computeSongDeviation            
+000004e9  configureMotorPWM               
+00000479  configurePWM                    
+0000043d  configureSinglePWM              
 000057ed  copy_in                         
 200004ac  correct                         
 200004d4  cycleCounter                    
 20000630  delay                           
 2000052c  driveFreq                       
 00000363  enablePeripherals               
-0000189d  enableUART                      
-000017f9  enableValveTimer                
+0000188d  enableUART                      
+000017ed  enableValveTimer                
 2000062c  encouragementDrop               
-000007e9  encouragementDropRandom         
+00000811  encouragementDropRandom         
 000057a5  exit                            
 200005e4  filterClockFreq                 
 200005fc  filterPWMLoad                   
@@ -566,7 +567,7 @@ ffffffff  binit
 00000000  g_pfnVectors                    
 200005c8  hexChars                        
 200004b0  incorrect                       
-20000518  j                               
+2000051c  j                               
 20000648  leftOpenDuration                
 200004a0  leftValveOpen                   
 20000508  leftValveOpenTime               
@@ -582,16 +583,16 @@ ffffffff  binit
 20000650  minDev                          
 20000530  motorDutyCycle                  
 20000654  motorLoad                       
-0000059d  motorOff                        
-00000541  motorRun                        
-000015b1  motorTimerHandler               
+000005c1  motorOff                        
+0000055d  motorRun                        
+000015c9  motorTimerHandler               
 200004dc  noLick                          
 20000658  noLickEncouragementCount        
 2000065c  noTones                         
 20000490  nonTemplateBlock                
 2000048c  nonTemplatePlayed               
-000017c9  openLeftValve                   
-000017ab  openRightValve                  
+000017c5  openLeftValve                   
+000017a7  openRightValve                  
 200004a8  openedOnce                      
 20000470  outerPhase0                     
 20000474  outerPhase1                     
@@ -606,7 +607,7 @@ ffffffff  binit
 20000664  phase3CounterTime               
 200004f4  phase4CounterTime               
 200004d0  play                            
-000009f5  playTone                        
+00000a15  playTone                        
 20000668  playToneCounter                 
 2000066c  poop                            
 20000638  punishDuration                  
@@ -615,10 +616,10 @@ ffffffff  binit
 20000670  rightOpenDuration               
 200004a4  rightValveOpen                  
 20000500  rightValveOpenTime              
-00000e8b  setUpMasterTimer                
-00000ed5  setUpRampTimer                  
-0000090d  setUpTonesTimers                
-00000659  shuffleSong                     
+00000eab  setUpMasterTimer                
+00000ef5  setUpRampTimer                  
+0000092d  setUpTonesTimers                
+0000067d  shuffleSong                     
 20000584  song                            
 20000528  songDeviation                   
 20000640  songRewardTime                  
@@ -626,6 +627,7 @@ ffffffff  binit
 200004b8  takeInParametersFlag            
 20000488  templatePlayed                  
 200005a8  templateSong                    
+20000518  thing                           
 200004e8  timeBetweenTones                
 200004f0  timeRes                         
 200004cc  tone                            
@@ -634,7 +636,7 @@ ffffffff  binit
 200005ae  tonesIndex                      
 20000674  tonesPerSong                    
 20000510  totalTrials                     
-00000f11  transmitUART                    
+00000f31  transmitUART                    
 20000514  trial                           
 20000678  ui32Length1                     
 2000067c  ui32Length2                     
@@ -643,7 +645,7 @@ ffffffff  binit
 20000688  ui32PWMClock                    
 00001961  updateVariables                 
 200004d8  updatedVars                     
-00001849  valveInterruptHandler           
+00001841  valveInterruptHandler           
 
 
 GLOBAL SYMBOLS: SORTED BY Symbol Address 
@@ -655,32 +657,33 @@ address   name
 00000200  __STACK_SIZE                    
 0000026d  main                            
 00000363  enablePeripherals               
-00000421  configureSinglePWM              
-0000045d  configurePWM                    
-000004cd  configureMotorPWM               
-00000541  motorRun                        
-0000059d  motorOff                        
-00000659  shuffleSong                     
-000007e9  encouragementDropRandom         
-00000841  coinFlip                        
-000008b3  computeSongDeviation            
-0000090d  setUpTonesTimers                
-000009f5  playTone                        
-00000e8b  setUpMasterTimer                
-00000ed5  setUpRampTimer                  
-00000f11  transmitUART                    
-00000fb5  MasterTimerIntHandler           
-00001519  Tone1TimerHandler               
-00001539  Tone2TimerHandler               
-00001561  Tone3TimerHandler               
-00001581  Tone4TimerHandler               
-000015b1  motorTimerHandler               
-00001639  LickPortAIntHandler             
-000017ab  openRightValve                  
-000017c9  openLeftValve                   
-000017f9  enableValveTimer                
-00001849  valveInterruptHandler           
-0000189d  enableUART                      
+00000421  UART_OutChar                    
+0000043d  configureSinglePWM              
+00000479  configurePWM                    
+000004e9  configureMotorPWM               
+0000055d  motorRun                        
+000005c1  motorOff                        
+0000067d  shuffleSong                     
+00000811  encouragementDropRandom         
+00000861  coinFlip                        
+000008d3  computeSongDeviation            
+0000092d  setUpTonesTimers                
+00000a15  playTone                        
+00000eab  setUpMasterTimer                
+00000ef5  setUpRampTimer                  
+00000f31  transmitUART                    
+00000fd9  MasterTimerIntHandler           
+0000152d  Tone1TimerHandler               
+00001551  Tone2TimerHandler               
+00001579  Tone3TimerHandler               
+00001599  Tone4TimerHandler               
+000015c9  motorTimerHandler               
+00001651  LickPortAIntHandler             
+000017a7  openRightValve                  
+000017c5  openLeftValve                   
+000017ed  enableValveTimer                
+00001841  valveInterruptHandler           
+0000188d  enableUART                      
 00001961  updateVariables                 
 00001c7d  UART0IntHandler                 
 00001d61  UARTSendData                    
@@ -1015,7 +1018,8 @@ address   name
 20000508  leftValveOpenTime               
 20000510  totalTrials                     
 20000514  trial                           
-20000518  j                               
+20000518  thing                           
+2000051c  j                               
 20000520  p                               
 20000528  songDeviation                   
 2000052c  driveFreq                       
@@ -1067,4 +1071,4 @@ ffffffff  binit
 UNDEFED   SHT$$INIT_ARRAY$$Base           
 UNDEFED   SHT$$INIT_ARRAY$$Limit          
 
-[416 symbols]
+[418 symbols]
